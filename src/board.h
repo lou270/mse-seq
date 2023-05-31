@@ -1,8 +1,10 @@
-/*************
-* Project : MSE Avionics
-* Board : SEQ
-* Description : Board description
-**************/
+/******************************
+| Project       : MSE Avionics
+| Board         : SEQ
+| Description   : Board description
+| Licence       : CC BY-NC-SA 
+| https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+******************************/
 
 // ==== PIN
 
@@ -35,3 +37,6 @@
 
 // Buzzer
 #define BUZZER_PIN 10
+
+// LED
+#define PICO_LED_PIN 25

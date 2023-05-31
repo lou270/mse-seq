@@ -1,73 +1,208 @@
-/*************
-* Project : MSE Avionics
-* Board : SEQ
-* Description : Board test
-**************/
+/******************************
+| Project       : MSE Avionics
+| Board         : SEQ
+| Description   : Sequencer main code
+| Licence       : CC BY-NC-SA 
+| https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
+******************************/
 #include <Arduino.h>
 #include "board.h"
+#include "parameters.h"
+#include <pico/time.h>
 
-void setup() {
+/* TODO List
+* Add PLD communication
+* Add apogee detection
+* Add flash data writing
+* Add usb data access
+*/
+
+bool apogeeDetected = false;
+float_t buzzerPulseTime = 0.1;
+volatile bool buzzerEnable = false;
+struct repeating_timer buzzerTimer;
+struct repeating_timer dataWriterTimer;
+
+void setupBoard() {
     // SEQ PLD UART
     Serial.begin(115200);
+    #if DEBUG == true
+    Serial.println(F("Initialisation..."));
+    #endif
     // IHM UART
     Serial1.begin(115200);
 
-    Serial.println(F("Initialisation..."));
-
+    // Setup motors
     pinMode(M1_A_PIN, OUTPUT);
     pinMode(M1_B_PIN, OUTPUT);
     pinMode(M2_A_PIN, OUTPUT);
     pinMode(M2_B_PIN, OUTPUT);
 
+    // Setup buzzer
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
 
-    delay(5000);
-    
-    Serial.println(F("Starting tests..."));
+    // Setup LED
+    pinMode(PICO_LED_PIN, OUTPUT);
+    digitalWrite(PICO_LED_PIN, LOW);
 }
 
+bool buzzerCallback(struct repeating_timer *t) {
+    if(buzzerEnable) {
+        tone(BUZZER_PIN, BUZ_FREQ, (unsigned long)t->user_data);
+    }
+    boolean wut = digitalRead(PICO_LED_PIN);
+    digitalWrite(PICO_LED_PIN, !wut);
+    Serial.println("TIMER FIRED");
+    return true;
+}
+
+void setBuzzer(bool enable, uint16_t beatPeriod = 0, uint16_t beatDuration = 0) {
+    bool a = cancel_repeating_timer(&buzzerTimer);
+    if(a) {
+        Serial.println("DONE REMOVING");
+    } else {
+        Serial.println("NO TIMER TO REMOVE");
+    }
+    buzzerEnable = enable;
+    if (!enable) {
+        digitalWrite(BUZZER_PIN, 0);
+    }
+    if (beatPeriod > 0) {
+        a = add_repeating_timer_ms(beatPeriod, buzzerCallback, &beatDuration, &buzzerTimer);
+        if(a) {
+            Serial.println("ADD TIMER OK");
+        } else {
+            Serial.println("ADD TIMER NOT OK");
+        }
+    }
+
+
+}
+
+bool launchDetection() {
+    return false;
+}
+
+bool apogeeDetection() {
+    return false;
+}
+
+void closeParachuteDoor() {
+    digitalWrite(M1_A_PIN, CLOSE_PARA_DOOR_VAL & 0x1);
+    digitalWrite(M1_B_PIN, CLOSE_PARA_DOOR_VAL & 0x2);
+    digitalWrite(M2_A_PIN, CLOSE_PARA_DOOR_VAL & 0x1);
+    digitalWrite(M2_B_PIN, CLOSE_PARA_DOOR_VAL & 0x2);
+    delay(TIME_CLOSE_PARA_DOOR);
+    digitalWrite(M1_A_PIN, 0x0);
+    digitalWrite(M1_B_PIN, 0x0);
+    digitalWrite(M2_A_PIN, 0x0);
+    digitalWrite(M2_B_PIN, 0x0);
+}
+
+void openParachuteDoor() {
+    digitalWrite(M1_A_PIN, OPEN_PARA_DOOR_VAL & 0x1);
+    digitalWrite(M1_B_PIN, OPEN_PARA_DOOR_VAL & 0x2);
+    digitalWrite(M2_A_PIN, OPEN_PARA_DOOR_VAL & 0x1);
+    digitalWrite(M2_B_PIN, OPEN_PARA_DOOR_VAL & 0x2);
+    delay(TIME_OPEN_PARA_DOOR);
+    digitalWrite(M1_A_PIN, 0x0);
+    digitalWrite(M1_B_PIN, 0x0);
+    digitalWrite(M2_A_PIN, 0x0);
+    digitalWrite(M2_B_PIN, 0x0);
+}
+
+bool statusCallback(struct repeating_timer *t) {
+  boolean wut = digitalRead(PICO_LED_PIN);
+  digitalWrite(PICO_LED_PIN, !wut);
+  return true;
+}
+
+bool dataWriterCallback(struct repeating_timer *t) {
+//   boolean wut = digitalRead(PICO_LED_PIN);
+//   digitalWrite(PICO_LED_PIN,!wut);
+  return true;
+}
+
+void setup() {
+    delay(5000);
+    setupBoard();
+
+    #if DEBUG == true
+    Serial.println(F("Board setup complete"));
+    #endif
+
+    setBuzzer(BUZ_ON, 500, 0.1);
+    delay(600);
+    setBuzzer(false);
+
+    #if DEBUG == true
+    Serial.println(F("Closing parachute door..."));
+    #endif
+
+    closeParachuteDoor();
+
+    #if DEBUG == true
+    Serial.println(F("Done closing parachute door"));
+    #endif
+    
+    setBuzzer(BUZ_ON, 500, 0.1);
+    delay(1600);
+    
+    setBuzzer(BUZ_ON, BUZ_TIME_BEFORE_LAUNCH, 100);
+}
 
 void loop() {
 
-    // Voltage
-    Serial.println(F("== Voltage test =="));
-    uint16_t vbatSeq = analogRead(VBAT_SEQ_PIN);
-    Serial.print(F("VBAT SEQ = "));
-    Serial.println(vbatSeq*3.3/1024.0*1.0/VD_DIV);
+    #if DEBUG == true
+    Serial.println(F("Waiting for launch..."));
+    #endif
 
-    uint16_t vbatMot = analogRead(VBAT_M_PIN);
-    Serial.print(F("VBAT MOT = "));
-    Serial.println(vbatMot*3.3/1024.0*1.0/VD_DIV);
+    // Wait until launch is detected
+    while(!launchDetection())
+        ;
 
-    // Buzzer
-    Serial.println(F("== Buzzer test =="));
-    // tone(BUZZER_PIN, 1000, 50);
-    delay(500);
-    // tone(BUZZER_PIN, 1000, 50);
+    #if DEBUG == true
+    Serial.println(F("Launch detected"));
+    #endif
 
-    // IHM UART
-    Serial1.print(F("I"));
-    if(Serial1.read() == (int)"I") {
-        Serial.println(F("[IHM] UART OK"));
-    } else {
-        Serial.println(F("/!\\ IHM UART NOT OK"));
+    // Launch apogee timer
+    uint64_t launchTime = rp2040.getCycleCount64()/(rp2040.f_cpu()/1000);
+    // Change buzzer sound
+    setBuzzer(BUZ_ON, BUZ_TIME_AFTER_LAUNCH, 100);
+
+    #if DEBUG == true
+    Serial.println(F("Waiting for apogee detection..."));
+    #endif
+
+    bool apogeeDetectedInWin = false;
+    bool timerDone = false;
+    while(!apogeeDetectedInWin && !timerDone) {
+
+        uint64_t curTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000)) - launchTime;
+
+        apogeeDetected = apogeeDetection();
+        if (curTime > START_WINDOW_TIME) {
+            apogeeDetectedInWin = apogeeDetected;
+        }
+        
+        if (curTime > END_WINDOW_TIME) {
+            timerDone = true;
+        }
     }
 
-    // Motor
-    Serial.println(F("== MOTOR test =="));
-    uint8_t cnt = 4;
-    uint8_t val = 0;
-    while(cnt--) {
-        Serial.print(F("[MOTOR] value = "));
-        Serial.println(val);
-        digitalWrite(M1_A_PIN, val & 0x1);
-        digitalWrite(M1_B_PIN, val & 0x2);
-        digitalWrite(M2_A_PIN, val & 0x1);
-        digitalWrite(M2_B_PIN, val & 0x2);
-        val = (val + 1) & 0x3;
-        delay(1000);
-    }
+    #if DEBUG == true
+    Serial.println(F("Apogee detection done, opening parachute door..."));
+    #endif
 
-    delay(2000);
+    // Change buzzer sound
+    setBuzzer(BUZ_ON, BUZ_TIME_AFTER_APOGEE, 2000);
+    openParachuteDoor();
+
+    #if DEBUG == true
+    Serial.println(F("Done opening parachute door"));
+    #endif
+
+    while(1)
+        ;
 }
