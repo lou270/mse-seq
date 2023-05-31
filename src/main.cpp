@@ -22,6 +22,12 @@ void setup() {
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
 
+    // Camera triggers
+    pinMode(CAM_N1_PIN, OUTPUT);
+    pinMode(CAM_N2_PIN, OUTPUT);
+    digitalWrite(CAM_N1_PIN, LOW);
+    digitalWrite(CAM_N2_PIN, LOW);
+
     delay(5000);
     
     Serial.println(F("Starting tests..."));
@@ -42,9 +48,9 @@ void loop() {
 
     // Buzzer
     Serial.println(F("== Buzzer test =="));
-    // tone(BUZZER_PIN, 1000, 50);
+    tone(BUZZER_PIN, 1000, 50);
     delay(500);
-    // tone(BUZZER_PIN, 1000, 50);
+    tone(BUZZER_PIN, 1000, 50);
 
     // IHM UART
     Serial1.print(F("I"));
@@ -69,5 +75,22 @@ void loop() {
         delay(1000);
     }
 
-    delay(2000);
+    // Camera triggers
+    Serial.println(F("== Camera test =="));
+    Serial.println(F("[CAM] trigger on"));
+    digitalWrite(CAM_N1_PIN, HIGH);
+    digitalWrite(CAM_N2_PIN, LOW);
+    delay(1000);
+    Serial.println(F("[CAM] trigger off"));
+    digitalWrite(CAM_N1_PIN, LOW);
+    digitalWrite(CAM_N2_PIN, LOW);
+
+    delay(10000);
+    Serial.println(F("[CAM] trigger on"));
+    digitalWrite(CAM_N1_PIN, HIGH);
+    delay(1000);
+    Serial.println(F("[CAM] trigger off"));
+    digitalWrite(CAM_N1_PIN, LOW);
+
+    delay(5000);
 }
