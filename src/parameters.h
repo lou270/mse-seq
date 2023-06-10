@@ -10,8 +10,8 @@
 #define DEBUG true
 
 // Buzzer
-#define BUZ_ON true
-#define BUZ_FREQ 1500 // [Hz]
+#define BUZ_ON false
+#define BUZ_FREQ 500 // [Hz]
 #define BUZ_TIME_BEFORE_LAUNCH 3000 // [ms]
 #define BUZ_TIME_AFTER_LAUNCH 1000 // [ms]
 #define BUZ_TIME_AFTER_APOGEE 10000 // [ms]

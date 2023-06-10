@@ -8,6 +8,9 @@
 
 // ==== PIN
 
+// Acc contact
+#define ACC_CONT_PIN 20
+
 // Cam
 #define CAM_N1_PIN 3
 #define CAM_N2_PIN 2

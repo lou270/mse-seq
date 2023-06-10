@@ -32,6 +32,9 @@ void setupBoard() {
     // IHM UART
     Serial1.begin(115200);
 
+    // Setup acc contact
+    pinMode(ACC_CONT_PIN, INPUT);
+
     // Setup motors
     pinMode(M1_A_PIN, OUTPUT);
     pinMode(M1_B_PIN, OUTPUT);
@@ -41,6 +44,8 @@ void setupBoard() {
     // Setup buzzer
     pinMode(BUZZER_PIN, OUTPUT);
     digitalWrite(BUZZER_PIN, LOW);
+    // digitalWrite(BUZZER_PIN, HIGH);
+    // while(1);
 
     // Setup LED
     pinMode(PICO_LED_PIN, OUTPUT);
@@ -50,8 +55,9 @@ void setupBoard() {
 bool buzzerCallback(struct repeating_timer *t) {
     if(buzzerEnable) {
         tone(BUZZER_PIN, BUZ_FREQ, (unsigned long)t->user_data);
+        Serial.println((unsigned long)t->user_data);
     }
-    boolean wut = digitalRead(PICO_LED_PIN);
+    bool wut = digitalRead(PICO_LED_PIN);
     digitalWrite(PICO_LED_PIN, !wut);
     Serial.println("TIMER FIRED");
     return true;
@@ -67,6 +73,7 @@ void setBuzzer(bool enable, uint16_t beatPeriod = 0, uint16_t beatDuration = 0) 
     buzzerEnable = enable;
     if (!enable) {
         digitalWrite(BUZZER_PIN, 0);
+        noTone(BUZZER_PIN);
     }
     if (beatPeriod > 0) {
         a = add_repeating_timer_ms(beatPeriod, buzzerCallback, &beatDuration, &buzzerTimer);
@@ -76,12 +83,10 @@ void setBuzzer(bool enable, uint16_t beatPeriod = 0, uint16_t beatDuration = 0) 
             Serial.println("ADD TIMER NOT OK");
         }
     }
-
-
 }
 
 bool launchDetection() {
-    return false;
+    return !digitalRead(ACC_CONT_PIN);
 }
 
 bool apogeeDetection() {
@@ -136,15 +141,15 @@ void setup() {
     delay(600);
     setBuzzer(false);
 
-    #if DEBUG == true
-    Serial.println(F("Closing parachute door..."));
-    #endif
+    // #if DEBUG == true
+    // Serial.println(F("Closing parachute door..."));
+    // #endif
 
-    closeParachuteDoor();
+    // closeParachuteDoor();
 
-    #if DEBUG == true
-    Serial.println(F("Done closing parachute door"));
-    #endif
+    // #if DEBUG == true
+    // Serial.println(F("Done closing parachute door"));
+    // #endif
     
     setBuzzer(BUZ_ON, 500, 0.1);
     delay(1600);
@@ -206,3 +211,4 @@ void loop() {
     while(1)
         ;
 }
+
