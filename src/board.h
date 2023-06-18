@@ -5,6 +5,8 @@
 | Licence       : CC BY-NC-SA 
 | https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 ******************************/
+#ifndef BOARD_HEADER_FILE
+#define BOARD_HEADER_FILE
 
 // ==== PIN
 
@@ -41,5 +43,14 @@
 // Buzzer
 #define BUZZER_PIN 10
 
-// LED
+// PICO Board
 #define PICO_LED_PIN 25
+#define PICO_BUTTON_PIN 24
+
+// End stop
+#define FDC1_PIN 11
+#define FDC2_PIN 12
+#define FDC3_PIN 13
+#define FDC4_PIN 14
+
+#endif

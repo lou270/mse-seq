@@ -6,31 +6,41 @@
 | https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 ******************************/
 #include <Arduino.h>
+#include <pico/time.h>
 #include "board.h"
 #include "parameters.h"
-#include <pico/time.h>
+#include "buzzer.h"
+#include "motor.h"
 
 /* TODO List
 * Add PLD communication
 * Add apogee detection
+* Add 10dof access
 * Add flash data writing
 * Add usb data access
 */
 
 bool apogeeDetected = false;
-float_t buzzerPulseTime = 0.1;
-volatile bool buzzerEnable = false;
-struct repeating_timer buzzerTimer;
 struct repeating_timer dataWriterTimer;
 
 void setupBoard() {
     // SEQ PLD UART
-    Serial.begin(115200);
     #if DEBUG == true
+    Serial.begin(115200);
     Serial.println(F("Initialisation..."));
     #endif
-    // IHM UART
+
+    // SEQ<->PLD UART (Serial1 = UART0)
+    Serial1.setRX(SEQ_PLD_UART_RX_PIN);
+    Serial1.setTX(SEQ_PLD_UART_TX_PIN);
+    Serial1.setFIFOSize(128);
     Serial1.begin(115200);
+
+    // IHM UART
+    Serial2.setRX(IHM_UART_RX_PIN);
+    Serial2.setTX(IHM_UART_TX_PIN);
+    Serial2.setFIFOSize(128);
+    Serial2.begin(115200);
 
     // Setup acc contact
     pinMode(ACC_CONT_PIN, INPUT);
@@ -43,46 +53,21 @@ void setupBoard() {
 
     // Setup buzzer
     pinMode(BUZZER_PIN, OUTPUT);
-    digitalWrite(BUZZER_PIN, LOW);
-    // digitalWrite(BUZZER_PIN, HIGH);
-    // while(1);
+    analogWriteFreq(FREQ_PWM);
+    analogWriteRange(MAX_VAL_PWM);
 
-    // Setup LED
+    // Setup LED Pico
     pinMode(PICO_LED_PIN, OUTPUT);
     digitalWrite(PICO_LED_PIN, LOW);
-}
 
-bool buzzerCallback(struct repeating_timer *t) {
-    if(buzzerEnable) {
-        tone(BUZZER_PIN, BUZ_FREQ, (unsigned long)t->user_data);
-        Serial.println((unsigned long)t->user_data);
-    }
-    bool wut = digitalRead(PICO_LED_PIN);
-    digitalWrite(PICO_LED_PIN, !wut);
-    Serial.println("TIMER FIRED");
-    return true;
-}
+    // Setup button Pico
+    pinMode(PICO_BUTTON_PIN, INPUT);
 
-void setBuzzer(bool enable, uint16_t beatPeriod = 0, uint16_t beatDuration = 0) {
-    bool a = cancel_repeating_timer(&buzzerTimer);
-    if(a) {
-        Serial.println("DONE REMOVING");
-    } else {
-        Serial.println("NO TIMER TO REMOVE");
-    }
-    buzzerEnable = enable;
-    if (!enable) {
-        digitalWrite(BUZZER_PIN, 0);
-        noTone(BUZZER_PIN);
-    }
-    if (beatPeriod > 0) {
-        a = add_repeating_timer_ms(beatPeriod, buzzerCallback, &beatDuration, &buzzerTimer);
-        if(a) {
-            Serial.println("ADD TIMER OK");
-        } else {
-            Serial.println("ADD TIMER NOT OK");
-        }
-    }
+    // Setup end stop
+    pinMode(FDC1_PIN, INPUT);
+    pinMode(FDC2_PIN, INPUT);
+    pinMode(FDC3_PIN, INPUT);
+    pinMode(FDC4_PIN, INPUT);
 }
 
 bool launchDetection() {
@@ -93,44 +78,13 @@ bool apogeeDetection() {
     return false;
 }
 
-void closeParachuteDoor() {
-    digitalWrite(M1_A_PIN, CLOSE_PARA_DOOR_VAL & 0x1);
-    digitalWrite(M1_B_PIN, CLOSE_PARA_DOOR_VAL & 0x2);
-    digitalWrite(M2_A_PIN, CLOSE_PARA_DOOR_VAL & 0x1);
-    digitalWrite(M2_B_PIN, CLOSE_PARA_DOOR_VAL & 0x2);
-    delay(TIME_CLOSE_PARA_DOOR);
-    digitalWrite(M1_A_PIN, 0x0);
-    digitalWrite(M1_B_PIN, 0x0);
-    digitalWrite(M2_A_PIN, 0x0);
-    digitalWrite(M2_B_PIN, 0x0);
-}
-
-void openParachuteDoor() {
-    digitalWrite(M1_A_PIN, OPEN_PARA_DOOR_VAL & 0x1);
-    digitalWrite(M1_B_PIN, OPEN_PARA_DOOR_VAL & 0x2);
-    digitalWrite(M2_A_PIN, OPEN_PARA_DOOR_VAL & 0x1);
-    digitalWrite(M2_B_PIN, OPEN_PARA_DOOR_VAL & 0x2);
-    delay(TIME_OPEN_PARA_DOOR);
-    digitalWrite(M1_A_PIN, 0x0);
-    digitalWrite(M1_B_PIN, 0x0);
-    digitalWrite(M2_A_PIN, 0x0);
-    digitalWrite(M2_B_PIN, 0x0);
-}
-
 bool statusCallback(struct repeating_timer *t) {
   boolean wut = digitalRead(PICO_LED_PIN);
   digitalWrite(PICO_LED_PIN, !wut);
   return true;
 }
 
-bool dataWriterCallback(struct repeating_timer *t) {
-//   boolean wut = digitalRead(PICO_LED_PIN);
-//   digitalWrite(PICO_LED_PIN,!wut);
-  return true;
-}
-
 void setup() {
-    delay(5000);
     setupBoard();
 
     #if DEBUG == true
@@ -138,22 +92,9 @@ void setup() {
     #endif
 
     setBuzzer(BUZ_ON, 500, 0.1);
-    delay(600);
+    delay(2000);
     setBuzzer(false);
 
-    // #if DEBUG == true
-    // Serial.println(F("Closing parachute door..."));
-    // #endif
-
-    // closeParachuteDoor();
-
-    // #if DEBUG == true
-    // Serial.println(F("Done closing parachute door"));
-    // #endif
-    
-    setBuzzer(BUZ_ON, 500, 0.1);
-    delay(1600);
-    
     setBuzzer(BUZ_ON, BUZ_TIME_BEFORE_LAUNCH, 100);
 }
 
@@ -164,8 +105,15 @@ void loop() {
     #endif
 
     // Wait until launch is detected
-    while(!launchDetection())
-        ;
+    while(!launchDetection()) {
+        #if INPUT_CLOSE_MOT_ACTION == true
+        if(digitalRead(FDC4_PIN) == 1) {
+            writeMotor(CLOSE_PARA_DOOR_VAL);
+        } else {
+            writeMotor(0);
+        }
+        #endif
+    }
 
     #if DEBUG == true
     Serial.println(F("Launch detected"));
