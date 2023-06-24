@@ -17,6 +17,9 @@
 #define CAM_N1_PIN 3
 #define CAM_N2_PIN 2
 
+// IMU Pins
+#define MPU_INT_PIN 6
+
 // Parachute mechanism - Motors
 #define M1_A_PIN 16
 #define M1_B_PIN 17

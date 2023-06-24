@@ -1,7 +1,7 @@
 /******************************
 | Project       : MSE Avionics
 | Board         : SEQ
-| Description   : Chopper management
+| Description   : Motor management
 | Licence       : CC BY-NC-SA 
 | https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 ******************************/

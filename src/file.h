@@ -1,7 +1,7 @@
 /******************************
 | Project       : MSE Avionics
 | Board         : SEQ
-| Description   : Buzzer management header
+| Description   : File management header
 | Licence       : CC BY-NC-SA 
 | https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode
 ******************************/

@@ -11,6 +11,7 @@
 #include "parameters.h"
 #include "buzzer.h"
 #include "motor.h"
+#include "imu.h"
 
 /* TODO List
 * Add PLD communication
@@ -22,6 +23,8 @@
 
 bool apogeeDetected = false;
 struct repeating_timer dataWriterTimer;
+
+uint64_t currTime, prevTime = 0;
 
 void setupBoard() {
     // SEQ PLD UART
@@ -68,14 +71,13 @@ void setupBoard() {
     pinMode(FDC2_PIN, INPUT);
     pinMode(FDC3_PIN, INPUT);
     pinMode(FDC4_PIN, INPUT);
+
+    // Setup 10 DoF Pico
+    setupIMU();
 }
 
 bool launchDetection() {
     return !digitalRead(ACC_CONT_PIN);
-}
-
-bool apogeeDetection() {
-    return false;
 }
 
 bool statusCallback(struct repeating_timer *t) {
@@ -113,6 +115,17 @@ void loop() {
             writeMotor(0);
         }
         #endif
+        #if DEBUG == true
+        // readIMUData();
+        Angle_t * angle = imuReadAllKalman();
+        currTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000));
+        if ((currTime - prevTime) >= 250) {
+            prevTime = currTime;
+            char txt[60] = "";
+            sprintf(txt, "[IMU] angle X: %.2f | angle Y: %.2f | angle Z: %.2f", angle->x, angle->y, angle->z);
+            Serial.println(txt);
+        }
+        #endif
     }
 
     #if DEBUG == true
@@ -132,14 +145,14 @@ void loop() {
     bool timerDone = false;
     while(!apogeeDetectedInWin && !timerDone) {
 
-        uint64_t curTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000)) - launchTime;
+        currTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000)) - launchTime;
 
         apogeeDetected = apogeeDetection();
-        if (curTime > START_WINDOW_TIME) {
+        if (currTime > START_WINDOW_TIME) {
             apogeeDetectedInWin = apogeeDetected;
         }
         
-        if (curTime > END_WINDOW_TIME) {
+        if (currTime > END_WINDOW_TIME) {
             timerDone = true;
         }
     }
