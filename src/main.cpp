@@ -12,6 +12,7 @@
 #include "buzzer.h"
 #include "motor.h"
 #include "imu.h"
+#include "sequencer.h"
 
 /* TODO List
 * Add PLD communication
@@ -21,10 +22,8 @@
 * Add usb data access
 */
 
-bool apogeeDetected = false;
 struct repeating_timer dataWriterTimer;
-
-uint64_t currTime, prevTime = 0;
+uint64_t currentTime, previousTime = 0;
 
 void setupBoard() {
     // SEQ PLD UART
@@ -76,16 +75,6 @@ void setupBoard() {
     setupIMU();
 }
 
-bool launchDetection() {
-    return !digitalRead(ACC_CONT_PIN);
-}
-
-bool statusCallback(struct repeating_timer *t) {
-  boolean wut = digitalRead(PICO_LED_PIN);
-  digitalWrite(PICO_LED_PIN, !wut);
-  return true;
-}
-
 void setup() {
     setupBoard();
 
@@ -101,12 +90,13 @@ void setup() {
 }
 
 void loop() {
+    uint64_t t0, t1 = 0;
 
     #if DEBUG == true
     Serial.println(F("Waiting for launch..."));
     #endif
 
-    // Wait until launch is detected
+    // =========== PRE-LAUNCH
     while(!launchDetection()) {
         #if INPUT_CLOSE_MOT_ACTION == true
         if(digitalRead(FDC4_PIN) == 1) {
@@ -117,17 +107,22 @@ void loop() {
         #endif
         #if DEBUG == true
         // readIMUData();
-        Angle_t * angle = imuReadAllKalman();
-        currTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000));
-        if ((currTime - prevTime) >= 250) {
-            prevTime = currTime;
+        Angle_t * angle = computeAngle();
+        currentTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000));
+        if ((currentTime - previousTime) >= 250) {
+            previousTime = currentTime;
             char txt[60] = "";
             sprintf(txt, "[IMU] angle X: %.2f | angle Y: %.2f | angle Z: %.2f", angle->x, angle->y, angle->z);
             Serial.println(txt);
         }
         #endif
+        // seqPreLaunch();
+        // t1 = rp2040.getCycleCount64();
+        // Serial.println((t1-t0)*1000.0/rp2040.f_cpu());
+        // t0 = rp2040.getCycleCount64();
     }
 
+    // =========== ASCEND
     #if DEBUG == true
     Serial.println(F("Launch detected"));
     #endif
@@ -144,19 +139,19 @@ void loop() {
     bool apogeeDetectedInWin = false;
     bool timerDone = false;
     while(!apogeeDetectedInWin && !timerDone) {
+        Angle_t * angle = computeAngle();
 
-        currTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000)) - launchTime;
-
-        apogeeDetected = apogeeDetection();
-        if (currTime > START_WINDOW_TIME) {
-            apogeeDetectedInWin = apogeeDetected;
+        currentTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000)) - launchTime;
+        if (currentTime > START_WINDOW_TIME) {
+            apogeeDetectedInWin = apogeeDetection(angle);
         }
-        
-        if (currTime > END_WINDOW_TIME) {
+        if (currentTime > END_WINDOW_TIME) {
             timerDone = true;
         }
+
     }
 
+    // =========== DEPLOY PARACHUTE
     #if DEBUG == true
     Serial.println(F("Apogee detection done, opening parachute door..."));
     #endif
@@ -169,7 +164,13 @@ void loop() {
     Serial.println(F("Done opening parachute door"));
     #endif
 
+    // =========== DESCEND
+    // Nothing for now
+
+    // =========== TOUCHDOWN
+    // Nothing for now
+
     while(1)
-        ;
+    ;
 }
 

@@ -23,8 +23,7 @@
 #define IMU_MAG_RES MFS_16BITS
 
 // IMU data type
-typedef struct 
-{
+typedef struct {
     // Raw values
     int16_t raw_ax, raw_ay, raw_az;
     int16_t raw_gx, raw_gy, raw_gz;
@@ -37,15 +36,13 @@ typedef struct
 } Imu_t;
 
 // Angle data type
-typedef struct 
-{
+typedef struct  {
     // Angle
     double x, y, z;
 } Angle_t;
 
 // Kalman structure type
-typedef struct 
-{
+typedef struct {
     double Q_angle;
     double Q_bias;
     double R_measure;
@@ -56,10 +53,8 @@ typedef struct
 
 void setupIMU(void);
 void readIMUData(void);
-// void ImuKal
-bool apogeeDetection(void);
-Angle_t * imuReadAllKalman(void);
+Angle_t * computeAngle(void);
 void rawToSi(Imu_t *imuData);
-double imuKalmanGetAngle(Kalman_t *Kalman, double newAngle, double newRate, double dt);
+double getAngleKalman(Kalman_t *Kalman, double newAngle, double newRate, double dt);
 
 #endif

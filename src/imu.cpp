@@ -13,16 +13,16 @@ float magCalib[3] = {0};
 
 static uint64_t timer = 0;
 
+#define RAD_TO_DEG 57.295779513082320876798154814105
+
 /* initialiaze the X axis Kalman */
-static Kalman_t kalmanX = 
-{
+static Kalman_t kalmanX = {
     .Q_angle   = 0.001f,
     .Q_bias    = 0.003f,
     .R_measure = 0.03f
 };
 /* initialiaze the Y axis Kalman */
-static Kalman_t kalmanY = 
-{
+static Kalman_t kalmanY = {
     .Q_angle   = 0.001f,
     .Q_bias    = 0.003f,
     .R_measure = 0.03f,
@@ -38,8 +38,6 @@ Angle_t angle = {
 };
 
 Imu_t imuData;
-
-#define RAD_TO_DEG 					57.295779513082320876798154814105
 
 void setupIMU() {
     Wire1.setSDA(6);
@@ -61,7 +59,6 @@ void setupIMU() {
 }
 
 void readIMUData() {
-
     int16_t accel[3], gyro[3], mag[3] = {0};
 
     uint64_t firstTime = rp2040.getCycleCount64();
@@ -99,23 +96,15 @@ void readIMUData() {
     #endif
 }
 
-bool apogeeDetection() {
-
-    return false;
-}
-
 /** ************************************************************* *
  * @brief       read all and apply the kalman filter to the result
  * 
  * @return      Angle computed 
  * ************************************************************* **/
-Angle_t * imuReadAllKalman(void)
-{
+Angle_t * computeAngle(void) {
     imu.readAccelData(MPU9250_1_ADDRESS, &imuData.raw_ax);
     imu.readGyroData(MPU9250_1_ADDRESS, &imuData.raw_gx);
     rawToSi(&imuData);
-
-    // uint64_t firstTime = rp2040.getCycleCount64();
 
     // Kalman angle solve
     double dt = (double) (rp2040.getCycleCount64() - timer) / rp2040.f_cpu();
@@ -132,24 +121,24 @@ Angle_t * imuReadAllKalman(void)
 
     double pitch = atan2(-imuData.raw_ax, imuData.raw_az) * RAD_TO_DEG;
     if((pitch < -90 && angle.y > 90) 
-	|| (pitch > 90 && angle.y < -90)) 
-	{
+	    || (pitch > 90 && angle.y < -90)) {
         kalmanY.angle = pitch;
         angle.y = pitch;
     }  
-	else 
-	{
-        angle.y = imuKalmanGetAngle(&kalmanY, pitch, imuData.gy, dt);
+	else {
+        angle.y = getAngleKalman(&kalmanY, pitch, imuData.gy, dt);
     }
 
-    if (fabs(angle.y) > 90) imuData.gx = -imuData.gx;
-    angle.x = imuKalmanGetAngle(&kalmanX, roll, imuData.gy, dt);
+    if (fabs(angle.y) > 90) 
+        imuData.gx = -imuData.gx;
+    angle.x = getAngleKalman(&kalmanX, roll, imuData.gy, dt);
 
-    // uint64_t lastTime = rp2040.getCycleCount64();
-    // Serial.print("[KALMAN] Time : ");
-    // char txt[10] = "";
-    // sprintf(txt, "%.6f", (lastTime-firstTime)*1000.0/rp2040.f_cpu());
-    // Serial.println(txt);
+
+    // double yaw = atan2(imuData.raw_ax, imuData.raw_ay) * RAD_TO_DEG;
+    // double pitch = atan2(imuData.raw_az, imuData.raw_ay) * RAD_TO_DEG;
+
+    // angle.x = getAngleKalman(&kalmanX, yaw, imuData.gz, dt);
+    // angle.y = getAngleKalman(&kalmanY, pitch, imuData.gx, dt);
 
     return &angle;
 }
@@ -176,8 +165,7 @@ void rawToSi(Imu_t *imuData) {
  * @param       dt Delta time
  * @return      Angle computed 
  * ************************************************************* **/
-double imuKalmanGetAngle(Kalman_t *Kalman, double newAngle, double newRate, double dt) 
-{
+double getAngleKalman(Kalman_t *Kalman, double newAngle, double newRate, double dt) {
     double rate = newRate - Kalman->bias;
     Kalman->angle += dt * rate;
 
