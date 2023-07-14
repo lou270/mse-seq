@@ -13,9 +13,11 @@
 #include "board.h"
 #include "parameters.h"
 #include "MPU9250.h"
-#include "lps22hb.h"
+#include "LPS22HB.h"
 
 #define WHO_AM_I_MPU9250_VAL 0x71
+
+#define RAD_TO_DEG 57.295779513082320876798154814105
 
 // IMU parameters
 #define IMU_ACC_RES AFS_16G
@@ -52,9 +54,9 @@ typedef struct {
 } Kalman_t;
 
 void setupIMU(void);
-void readIMUData(void);
-Angle_t * computeAngle(void);
-void rawToSi(Imu_t *imuData);
+void getImuData(Imu_t* imuData, bool acqMag);
+void rawToSi(Imu_t* imuData);
+void computeAngle(Imu_t* imuData, Angle_t *angle);
 double getAngleKalman(Kalman_t *Kalman, double newAngle, double newRate, double dt);
 
 #endif

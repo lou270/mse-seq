@@ -17,13 +17,14 @@
 /* TODO List
 * Add PLD communication
 * Add apogee detection
-* Add 10dof access
-* Add flash data writing
-* Add usb data access
 */
 
+// Utils
 struct repeating_timer dataWriterTimer;
 uint64_t currentTime, previousTime = 0;
+
+// Rocket state machine
+RocketState_t rocketState = PRE_FLIGHT;
 
 void setupBoard() {
     // SEQ PLD UART
@@ -63,114 +64,56 @@ void setupBoard() {
     digitalWrite(PICO_LED_PIN, LOW);
 
     // Setup button Pico
-    pinMode(PICO_BUTTON_PIN, INPUT);
+    pinMode(PICO_BUTTON_PIN, INPUT_PULLUP);
 
     // Setup end stop
     pinMode(FDC1_PIN, INPUT);
     pinMode(FDC2_PIN, INPUT);
     pinMode(FDC3_PIN, INPUT);
     pinMode(FDC4_PIN, INPUT);
-
-    // Setup 10 DoF Pico
-    setupIMU();
 }
 
 void setup() {
-    setupBoard();
+    delay(1000);
 
+    setupBoard();
     #if DEBUG == true
     Serial.println(F("Board setup complete"));
     #endif
 
-    setBuzzer(BUZ_ON, 500, 0.1);
-    delay(2000);
+    setupIMU();
+
+    setBuzzer(BUZ_ON, 100, 30);
+    delay(300);
     setBuzzer(false);
 
-    setBuzzer(BUZ_ON, BUZ_TIME_BEFORE_LAUNCH, 100);
+    setBuzzer(BUZ_ON, BUZ_TIME_BEFORE_LAUNCH, 1000);
 }
 
 void loop() {
-    uint64_t t0, t1 = 0;
-
-    #if DEBUG == true
-    Serial.println(F("Waiting for launch..."));
-    #endif
-
+    // Rocket state machine
     // =========== PRE-LAUNCH
-    while(!launchDetection()) {
-        #if INPUT_CLOSE_MOT_ACTION == true
-        if(digitalRead(FDC4_PIN) == 1) {
-            writeMotor(CLOSE_PARA_DOOR_VAL);
-        } else {
-            writeMotor(0);
-        }
-        #endif
-        #if DEBUG == true
-        // readIMUData();
-        Angle_t * angle = computeAngle();
-        currentTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000));
-        if ((currentTime - previousTime) >= 250) {
-            previousTime = currentTime;
-            char txt[60] = "";
-            sprintf(txt, "[IMU] angle X: %.2f | angle Y: %.2f | angle Z: %.2f", angle->x, angle->y, angle->z);
-            Serial.println(txt);
-        }
-        #endif
-        // seqPreLaunch();
-        // t1 = rp2040.getCycleCount64();
-        // Serial.println((t1-t0)*1000.0/rp2040.f_cpu());
-        // t0 = rp2040.getCycleCount64();
-    }
-
+    if (rocketState == PRE_FLIGHT) {
+        rocketState = seqPreLaunch();
+    } 
     // =========== ASCEND
-    #if DEBUG == true
-    Serial.println(F("Launch detected"));
-    #endif
-
-    // Launch apogee timer
-    uint64_t launchTime = rp2040.getCycleCount64()/(rp2040.f_cpu()/1000);
-    // Change buzzer sound
-    setBuzzer(BUZ_ON, BUZ_TIME_AFTER_LAUNCH, 100);
-
-    #if DEBUG == true
-    Serial.println(F("Waiting for apogee detection..."));
-    #endif
-
-    bool apogeeDetectedInWin = false;
-    bool timerDone = false;
-    while(!apogeeDetectedInWin && !timerDone) {
-        Angle_t * angle = computeAngle();
-
-        currentTime = (rp2040.getCycleCount64()/(rp2040.f_cpu()/1000)) - launchTime;
-        if (currentTime > START_WINDOW_TIME) {
-            apogeeDetectedInWin = apogeeDetection(angle);
-        }
-        if (currentTime > END_WINDOW_TIME) {
-            timerDone = true;
-        }
-
+    else if (rocketState = ASCEND) {
+        rocketState = seqAscend();
+    } 
+    // =========== DEPLOY
+    else if (rocketState == DEPLOY_TIMER || rocketState == DEPLOY_ALGO) {
+        rocketState = seqDeploy();
+    }
+    // =========== DESCEND
+    else if (rocketState == DESCEND) {
+        rocketState = seqDescend();
+    }
+    // =========== TOUCHDOWN
+    else {
+        rocketState = seqTouchdown();
     }
 
-    // =========== DEPLOY PARACHUTE
-    #if DEBUG == true
-    Serial.println(F("Apogee detection done, opening parachute door..."));
-    #endif
-
-    // Change buzzer sound
-    setBuzzer(BUZ_ON, BUZ_TIME_AFTER_APOGEE, 2000);
-    openParachuteDoor();
-
-    #if DEBUG == true
-    Serial.println(F("Done opening parachute door"));
-    #endif
-
-    // =========== DESCEND
-    // Nothing for now
-
-    // =========== TOUCHDOWN
-    // Nothing for now
-
-    while(1)
-    ;
+    // Save periodic data
+    // writeDataToBufferFile();
 }
 
