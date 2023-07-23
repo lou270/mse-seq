@@ -13,7 +13,7 @@
 
 #if defined(MSE)
     // Debug
-    #define DEBUG true
+    // #define DEBUG true
 
     // PWM
     #define FREQ_PWM 500
@@ -22,23 +22,28 @@
     // Buzzer
     #define BUZ_ON true
     #define BUZ_FREQ 500 // [Hz]
-    #define BUZ_TIME_BEFORE_LAUNCH 20000 // [ms]
-    #define BUZ_TIME_AFTER_LAUNCH 140 // [ms]
-    #define BUZ_TIME_AFTER_APOGEE 10000 // [ms]
+    #define BUZ_TIME_PRE_LAUNCH 10000 // [ms]
+    #define BUZ_TIME_PYRO_RDY 1000 // [ms]
+    #define BUZ_TIME_ASCEND 140 // [ms]
+    #define BUZ_TIME_DESCEND 500 // [ms]
+    #define BUZ_TIME_RECUP 30000 // [ms]
     enum buzzer_power_enum {low = 5, med = 50, high = 100}; // % of buzzer
-    #define BUZ_POWER low // low - med - high
+    #define BUZ_POWER high // low - med - high
 
     // Apogee
-    #define START_WINDOW_TIME 1000 // [ms]
-    #define END_WINDOW_TIME 4000 // [ms]
+    #define START_WINDOW_TIME 18000 // [ms]
+    #define END_WINDOW_TIME 18000 // [ms]
     #define ANGLE_DET_APOGEE 100 // [°]
+    #define THRESHOLD_DERIV_BARO_APOGEE -0.1
+    #define BARO_MEAN_NB 100
+    #define TIME_AFTER_APOGEE_TOUCHDOWN 800000
 
     // Parachute motors
     #define INPUT_CLOSE_MOT_ACTION true
     #define CLOSE_PARA_DOOR_VAL 0x2
-    #define TIME_CLOSE_PARA_DOOR 30000 // [ms]
+    #define TIME_CLOSE_PARA_DOOR 20000 // [ms]
     #define OPEN_PARA_DOOR_VAL 0x1
-    #define TIME_OPEN_PARA_DOOR 30000 // [ms]
+    #define TIME_OPEN_PARA_DOOR 20000 // [ms]
 
 #elif defined(KRIPTONIT)
     // Debug
@@ -51,9 +56,9 @@
     // Buzzer
     #define BUZ_ON false
     #define BUZ_FREQ 500 // [Hz]
-    #define BUZ_TIME_BEFORE_LAUNCH 3000 // [ms]
-    #define BUZ_TIME_AFTER_LAUNCH 1000 // [ms]
-    #define BUZ_TIME_AFTER_APOGEE 10000 // [ms]
+    #define BUZ_TIME_PRE_LAUNCH 3000 // [ms]
+    #define BUZ_TIME_ASCEND 1000 // [ms]
+    #define BUZ_TIME_DESCEND 10000 // [ms]
     enum buzzer_power_enum {low = 5, med = 50, high = 100}; // % of buzzer
     #define BUZ_POWER low // low - med - high
 

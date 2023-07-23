@@ -14,11 +14,6 @@
 #include "imu.h"
 #include "sequencer.h"
 
-/* TODO List
-* Add PLD communication
-* Add apogee detection
-*/
-
 // Utils
 struct repeating_timer dataWriterTimer;
 uint64_t currentTime, previousTime = 0;
@@ -30,7 +25,7 @@ void setupBoard() {
     // SEQ PLD UART
     #if DEBUG == true
     Serial.begin(115200);
-    Serial.println(F("Initialisation..."));
+    Serial.println(F("[SETUP] Initialisation..."));
     #endif
 
     // SEQ<->PLD UART (Serial1 = UART0)
@@ -44,6 +39,12 @@ void setupBoard() {
     Serial2.setTX(IHM_UART_TX_PIN);
     Serial2.setFIFOSize(128);
     Serial2.begin(115200);
+
+    // Init I2C1 (dedicated to IMU)
+    Wire1.setSDA(I2C1_SDA);
+    Wire1.setSCL(I2C1_SCL);
+    Wire1.setClock(400000);
+    Wire1.begin();
 
     // Setup acc contact
     pinMode(ACC_CONT_PIN, INPUT);
@@ -71,15 +72,17 @@ void setupBoard() {
     pinMode(FDC2_PIN, INPUT);
     pinMode(FDC3_PIN, INPUT);
     pinMode(FDC4_PIN, INPUT);
+
+    // Setup cameras
+    pinMode(CAM_N1_PIN, OUTPUT);
+    pinMode(CAM_N2_PIN, OUTPUT);
+    setCameraTrigger(1);
 }
 
 void setup() {
     delay(1000);
 
     setupBoard();
-    #if DEBUG == true
-    Serial.println(F("Board setup complete"));
-    #endif
 
     setupIMU();
 
@@ -87,33 +90,51 @@ void setup() {
     delay(300);
     setBuzzer(false);
 
-    setBuzzer(BUZ_ON, BUZ_TIME_BEFORE_LAUNCH, 1000);
+    setBuzzer(BUZ_ON, BUZ_TIME_PRE_LAUNCH, 1000);
+
+    #if DEBUG == true
+    Serial.println(F("[SETUP] Board setup complete"));
+    #endif
 }
 
 void loop() {
     // Rocket state machine
     // =========== PRE-LAUNCH
     if (rocketState == PRE_FLIGHT) {
+        processSensors();
         rocketState = seqPreLaunch();
     } 
+    // =========== PYRO READY
+    else if (rocketState == PYRO_RDY) {
+        processSensors();
+        rocketState = seqPyroRdy();
+    } 
     // =========== ASCEND
-    else if (rocketState = ASCEND) {
+    else if (rocketState == ASCEND) {
+        processSensors();
         rocketState = seqAscend();
     } 
     // =========== DEPLOY
     else if (rocketState == DEPLOY_TIMER || rocketState == DEPLOY_ALGO) {
+        processSensors();
         rocketState = seqDeploy();
     }
     // =========== DESCEND
     else if (rocketState == DESCEND) {
+        processSensors();
         rocketState = seqDescend();
     }
     // =========== TOUCHDOWN
     else {
+        processSensors();
         rocketState = seqTouchdown();
     }
 
     // Save periodic data
     // writeDataToBufferFile();
+
+    #if DEBUG == true
+    delay(500);
+    #endif
 }
 

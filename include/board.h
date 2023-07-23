@@ -17,6 +17,10 @@
 #define CAM_N1_PIN 3
 #define CAM_N2_PIN 2
 
+// I2C1
+#define I2C1_SDA 6
+#define I2C1_SCL 7
+
 // IMU Pins
 #define MPU_INT_PIN 4
 

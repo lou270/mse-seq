@@ -32,9 +32,9 @@ typedef struct {
     int16_t raw_mx, raw_my, raw_mz;
 
     // True values
-    float ax, ay, az;
-    float gx, gy, gz;
-    float mx, my, mz;
+    float_t ax, ay, az;
+    float_t gx, gy, gz;
+    float_t mx, my, mz;
 } Imu_t;
 
 // Angle data type
@@ -53,7 +53,15 @@ typedef struct {
     double P[2][2];
 } Kalman_t;
 
-void setupIMU(void);
+// Derivate barometer structure type
+typedef struct {
+    float_t prevPressure;
+    float_t prevTime;
+    float_t dt;
+    float_t derivate;
+} DerivPressure_t;
+
+bool setupIMU(void);
 void getImuData(Imu_t* imuData, bool acqMag);
 void rawToSi(Imu_t* imuData);
 void computeAngle(Imu_t* imuData, Angle_t *angle);

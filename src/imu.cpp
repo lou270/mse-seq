@@ -26,20 +26,27 @@ static Kalman_t kalmanY = {
     .R_measure = 0.03f,
 };
 
-void setupIMU() {
+bool setupIMU() {
+    #if DEBUG == true
+    Serial.print(F("[IMU] Initialisation ... "));
+    #endif
+
     if(imu.readByte(MPU9250_1_ADDRESS, WHO_AM_I_MPU9250) == WHO_AM_I_MPU9250_VAL) {
         imu.initMPU9250(MPU9250_1_ADDRESS, IMU_ACC_RES, IMU_GYRO_RES, 4);
         imu.initAK8963Slave(MPU9250_1_ADDRESS, IMU_MAG_RES, M_100Hz, magCalib);
-        #if DEBUG == true
-        Serial.println(F("[IMU] Init done"));
-        #endif
         imuInitialised = 1;
+
+        #if DEBUG == true
+        Serial.println(F("done"));
+        #endif
     } else {
         imuInitialised = 0;
+
         #if DEBUG == true
-        Serial.println(F("[IMU] Init failed /!\\"));
+        Serial.println(F("failed"));
         #endif
     }
+    return imuInitialised;
 }
 
 void getImuData(Imu_t* imuData, bool acqMag) {
@@ -158,4 +165,3 @@ double getAngleKalman(Kalman_t *Kalman, double newAngle, double newRate, double 
 
     return Kalman->angle;
 }
-
